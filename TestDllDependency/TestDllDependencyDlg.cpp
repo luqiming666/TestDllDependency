@@ -7,12 +7,19 @@
 #include "TestDllDependency.h"
 #include "TestDllDependencyDlg.h"
 #include "afxdialogex.h"
+#include <iostream>
 
 #include "LateLoad_DllBWrapper.h"
+
+#include "..\Win32DllC\Win32DllCAPIs.h"
+#pragma comment(lib, "Win32DllC.lib")
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+// 打开一个控制台窗口，方便查看调试信息
+#define DEBUG_WINDOW_IS_OPEN	1
 
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
@@ -67,6 +74,8 @@ BEGIN_MESSAGE_MAP(CTestDllDependencyDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(IDC_BUTTON1, &CTestDllDependencyDlg::OnBnClickedButton1)
+	ON_BN_CLICKED(IDC_BUTTON2, &CTestDllDependencyDlg::OnBnClickedButton2)
 END_MESSAGE_MAP()
 
 
@@ -102,8 +111,17 @@ BOOL CTestDllDependencyDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
-	CDLLBWrapper dllBWrapper;
-	int result = dllBWrapper.AddThreeNumbers(1, 2, 3);
+#if DEBUG_WINDOW_IS_OPEN
+	// 打开一个控制台查看日志
+	if (::GetConsoleWindow() == NULL)
+	{
+		if (::AllocConsole())
+		{
+			FILE* stream;
+			freopen_s(&stream, "CONOUT$", "w", stdout);
+		}
+	}
+#endif
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -157,3 +175,25 @@ HCURSOR CTestDllDependencyDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+// Test: Dynamically-load DLL-B, which loads DLL-A
+void CTestDllDependencyDlg::OnBnClickedButton1()
+{
+	CDLLBWrapper dllBWrapper;
+	int result = dllBWrapper.AddThreeNumbers(1, 2, 3);
+	std::cout << "EXE -> DLL-B -> DLL-A: " << result << std::endl;
+}
+
+// Test: call a method in DLL C
+// 测试方法：将Win32DllC.dll删除，然后直接运行TestDllDependency.exe
+// 现象：App无法运行，主界面无法展现！报错：
+//	TestDllDependency.exe - 系统错误
+//	由于找不到Win32DllC.dll，无法继续执行代码。重新安装程序可能会解决此问题。
+void CTestDllDependencyDlg::OnBnClickedButton2()
+{
+	dllcapi_init();
+
+	int result = dllcapi_add_four_numbers(1, 2, 3, 4);
+	std::cout << "EXE -> Win32 standard DLL-C: " << result << std::endl;
+
+	dllcapi_release();
+}
