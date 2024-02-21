@@ -230,6 +230,7 @@ void CTestDllDependencyDlg::OnBnClickedButton3()
 	//		dumpbin /EXPORTS YourDLL.dll
 	typedef int (*MyFunctionPtr)(int, int);
 	MyFunctionPtr myFunction = (MyFunctionPtr)GetProcAddress(hDLL, "?dllbapi_power@MySpace@@YAHHH@Z"); // 不能使用MySpace::dllbapi_power
+	//MyFunctionPtr myFunction = (MyFunctionPtr)GetProcAddress(hDLL, "MySpace_dllbapi_power"); // 另一种解决方案：在DLL的.def文件中，对导出函数进行重新命名
 	if (myFunction == NULL) {
 		std::cout << "Failed to get function pointer" << std::endl;
 		return;
