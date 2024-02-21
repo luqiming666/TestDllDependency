@@ -14,9 +14,12 @@ LATELOAD_BEGIN_CLASS(CDLLBWrapper,	// the name of the class
 				   // in the destructor
 
 //
-// Function Declaration, Zero Parameters, returns nothing 
+// Function Declaration, 3 Parameters, returns int 
 //
 LATELOAD_FUNC_3(-1, int, STDAPIVCALLTYPE, AddThreeNumbers, int, int, int)
+
+LATELOAD_FUNC_2(-1, int, STDAPIVCALLTYPE, dllbapi_add, int, int)
+LATELOAD_FUNC_2(-1, int, STDAPIVCALLTYPE, dllbapi_minus, int, int)
 
 LATELOAD_END_CLASS()
 

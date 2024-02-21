@@ -76,6 +76,7 @@ BEGIN_MESSAGE_MAP(CTestDllDependencyDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BUTTON1, &CTestDllDependencyDlg::OnBnClickedButton1)
 	ON_BN_CLICKED(IDC_BUTTON2, &CTestDllDependencyDlg::OnBnClickedButton2)
+	ON_BN_CLICKED(IDC_BUTTON3, &CTestDllDependencyDlg::OnBnClickedButton3)
 END_MESSAGE_MAP()
 
 
@@ -176,6 +177,8 @@ HCURSOR CTestDllDependencyDlg::OnQueryDragIcon()
 }
 
 // Test: Dynamically-load DLL-B, which loads DLL-A
+//	DLL-A: MFC，通过宏导出一个类
+//	DLL-B: MFC，通过宏或者.def文件导出函数
 void CTestDllDependencyDlg::OnBnClickedButton1()
 {
 	CDLLBWrapper dllBWrapper;
@@ -183,7 +186,7 @@ void CTestDllDependencyDlg::OnBnClickedButton1()
 	std::cout << "EXE -> DLL-B -> DLL-A: " << result << std::endl;
 }
 
-// Test: call a method in DLL C
+// Test: call a method in DLL C（注：通过.lib静态链接）
 // 测试方法：将Win32DllC.dll删除，然后直接运行TestDllDependency.exe
 // 现象：App无法运行，主界面无法展现！报错：
 //	TestDllDependency.exe - 系统错误
@@ -196,4 +199,45 @@ void CTestDllDependencyDlg::OnBnClickedButton2()
 	std::cout << "EXE -> Win32 standard DLL-C: " << result << std::endl;
 
 	dllcapi_release();
+}
+
+// Test: Dynamically-load DLL-B
+//	重点测试DLL-B中带有namespace的函数调用
+void CTestDllDependencyDlg::OnBnClickedButton3()
+{
+	CDLLBWrapper dllBWrapper;
+	int result = dllBWrapper.dllbapi_add(3, 4);
+	std::cout << "EXE -> DLL-B >> simple API: " << result << std::endl;
+
+	// DLL中经过 extern "C" 修饰过的 namespace 被作废了！
+	result = dllBWrapper.dllbapi_minus(10, 2);
+	std::cout << "EXE -> DLL-B >> API with extern C namespace: " << result << std::endl;
+
+
+	///////////////////////////////////////////////////
+	// 不能使用LateLoad.h了...
+	HINSTANCE hDLL = LoadLibrary("DLLB.dll");
+	if (hDLL == NULL) {
+		std::cout << "Failed to load DLL" << std::endl;
+		return;
+	}
+
+	// 获取函数指针
+	// 注意：在C++中，函数名会被编译器进行名称修饰（name mangling），导致实际的函数名与源代码中的函数名不一样。
+	//	因此，在使用GetProcAddress获取函数指针时，需要使用实际的修饰后的函数名。
+	//	或者在DLL开发时，使用extern "C"来告诉编译器不要进行名称修饰
+	// 【技巧】可以通过如下命令查看DLL的导出函数名
+	//		dumpbin /EXPORTS YourDLL.dll
+	typedef int (*MyFunctionPtr)(int, int);
+	MyFunctionPtr myFunction = (MyFunctionPtr)GetProcAddress(hDLL, "?dllbapi_power@MySpace@@YAHHH@Z"); // 不能使用MySpace::dllbapi_power
+	if (myFunction == NULL) {
+		std::cout << "Failed to get function pointer" << std::endl;
+		return;
+	}
+
+	result = myFunction(2, 3);
+	std::cout << "EXE -> DLL-B >> API with namespace: " << result << std::endl;
+
+	// 释放DLL
+	FreeLibrary(hDLL);
 }
