@@ -8,6 +8,7 @@
 #include "TestDllDependencyDlg.h"
 #include "afxdialogex.h"
 #include <iostream>
+#include <filesystem>
 
 #include "LateLoad_DllBWrapper.h"
 
@@ -77,6 +78,7 @@ BEGIN_MESSAGE_MAP(CTestDllDependencyDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON1, &CTestDllDependencyDlg::OnBnClickedButton1)
 	ON_BN_CLICKED(IDC_BUTTON2, &CTestDllDependencyDlg::OnBnClickedButton2)
 	ON_BN_CLICKED(IDC_BUTTON3, &CTestDllDependencyDlg::OnBnClickedButton3)
+	ON_BN_CLICKED(IDC_BUTTON4, &CTestDllDependencyDlg::OnBnClickedButton4)
 END_MESSAGE_MAP()
 
 
@@ -241,6 +243,42 @@ void CTestDllDependencyDlg::OnBnClickedButton3()
 
 	result = myFunction(2, 3);
 	std::cout << "EXE -> DLL-B >> API with namespace: " << result << std::endl;
+
+	// 释放DLL
+	FreeLibrary(hDLL);
+}
+
+// Test: 加载子目录里的DLL-B，DLL-B又加载了DLL-A，看看DLL-B会在哪里去找DLL-A
+// 测试方法：编译完成后，
+// 1. 运行copy_files.bat 将DLL-B和DLL-A拷贝到Debug\Components子目录，再运行TestDllDependency.exe >> 结果正常
+// 2. 将Components子目录下的DLL-A删除，再运行TestDllDependency.exe >> 结果正常
+// 3. 将TestDllDependency.exe所在目录下的DLL-A删除，再运行TestDllDependency.exe >> DLL-B加载失败！
+// 
+//	结论：一个DLL加载另一个DLL，DLL的搜寻路径在EXE或系统目录；除非使用绝对路径去加载！
+void CTestDllDependencyDlg::OnBnClickedButton4()
+{
+	// 获取主进程的完整路径
+	TCHAR szPath[MAX_PATH] = { 0 };
+	::GetModuleFileName(NULL, szPath, MAX_PATH);
+	std::filesystem::path filePath = szPath;
+	filePath = filePath.parent_path();
+	filePath /= "Components\\DLLB.dll";
+
+	HINSTANCE hDLL = LoadLibrary(filePath.string().c_str());
+	if (hDLL == NULL) {
+		std::cout << "Failed to load DLL" << std::endl;
+		return;
+	}
+
+	typedef int (*MyFun_AddThreeNumbers)(int, int, int);
+	MyFun_AddThreeNumbers fnAddThree = (MyFun_AddThreeNumbers)GetProcAddress(hDLL, "AddThreeNumbers"); 
+	if (fnAddThree == NULL) {
+		std::cout << "Failed to get function pointer" << std::endl;
+		return;
+	}
+
+	int result = fnAddThree(1, 2, 3);
+	std::cout << "EXE -> Components sub-folder \\ DLL-B -> DLL-A: " << result << std::endl;
 
 	// 释放DLL
 	FreeLibrary(hDLL);
