@@ -79,6 +79,7 @@ BEGIN_MESSAGE_MAP(CTestDllDependencyDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON2, &CTestDllDependencyDlg::OnBnClickedButton2)
 	ON_BN_CLICKED(IDC_BUTTON3, &CTestDllDependencyDlg::OnBnClickedButton3)
 	ON_BN_CLICKED(IDC_BUTTON4, &CTestDllDependencyDlg::OnBnClickedButton4)
+	ON_BN_CLICKED(IDC_BUTTON_MORE_DLL_DIR, &CTestDllDependencyDlg::OnBnClickedButtonMoreDllDir)
 END_MESSAGE_MAP()
 
 
@@ -252,7 +253,7 @@ void CTestDllDependencyDlg::OnBnClickedButton3()
 // 测试方法：编译完成后，
 // 1. 运行copy_files.bat 将DLL-B和DLL-A拷贝到Debug\Components子目录，再运行TestDllDependency.exe >> 结果正常
 // 2. 将Components子目录下的DLL-A删除，再运行TestDllDependency.exe >> 结果正常
-// 3. 将TestDllDependency.exe所在目录下的DLL-A删除，再运行TestDllDependency.exe >> DLL-B加载失败！
+// 3. 将TestDllDependency.exe所在目录下的DLL-A删除，保留Components子目录下的DLL-A，再运行TestDllDependency.exe >> DLL-B加载失败！
 // 
 //	结论：一个DLL加载另一个DLL，DLL的搜寻路径在EXE或系统目录；除非使用绝对路径去加载！
 void CTestDllDependencyDlg::OnBnClickedButton4()
@@ -263,7 +264,7 @@ void CTestDllDependencyDlg::OnBnClickedButton4()
 	std::filesystem::path filePath = szPath;
 	filePath = filePath.parent_path();
 	filePath /= "Components\\DLLB.dll";
-
+	
 	HINSTANCE hDLL = LoadLibrary(filePath.string().c_str());
 	if (hDLL == NULL) {
 		std::cout << "Failed to load DLL" << std::endl;
@@ -282,4 +283,23 @@ void CTestDllDependencyDlg::OnBnClickedButton4()
 
 	// 释放DLL
 	FreeLibrary(hDLL);
+}
+
+// Test：上述Button4的测试中，如果只保留Components子目录下的DLL-A，需要如下特殊处理后方可运行！
+// https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-adddlldirectory
+void CTestDllDependencyDlg::OnBnClickedButtonMoreDllDir()
+{
+	SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+	//SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_USER_DIRS);
+
+	// 获取主进程的完整路径
+	TCHAR szPath[MAX_PATH] = { 0 };
+	::GetModuleFileName(NULL, szPath, MAX_PATH);
+	std::filesystem::path filePath = szPath;
+
+	// 将EXE所在目录和Components子目录均加入DLL的搜索路径
+	filePath = filePath.parent_path();
+	AddDllDirectory(filePath.wstring().c_str());
+	filePath /= "Components";
+	AddDllDirectory(filePath.wstring().c_str());
 }
