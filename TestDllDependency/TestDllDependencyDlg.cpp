@@ -176,9 +176,11 @@ HCURSOR CTestDllDependencyDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-// Test: Dynamically-load DLL-B, which loads DLL-A
+// Test: Dynamically-load DLL-B, which statically links with DLL-A
 //	DLL-A: MFC，通过宏导出一个类
 //	DLL-B: MFC，通过宏或者.def文件导出函数
+// 测试方法：将DLL-A删除，然后直接运行TestDllDependency.exe
+//	结果：加载DLL-B时失败，需要进行相应的错误处理！
 void CTestDllDependencyDlg::OnBnClickedButton1()
 {
 	CDLLBWrapper dllBWrapper;
@@ -215,6 +217,7 @@ void CTestDllDependencyDlg::OnBnClickedButton3()
 
 
 	///////////////////////////////////////////////////
+	// namespace没有被extern "C" 修饰的情况：
 	// 不能使用LateLoad.h了...
 	HINSTANCE hDLL = LoadLibrary("DLLB.dll");
 	if (hDLL == NULL) {
